@@ -1,7 +1,9 @@
 {
   "schema": "agent-package/v1",
   "id": "github.com/jessejohnsohn/fix-bugs-agent",
-  "version": "2.0.0",
+  "name": "Fix bugs",
+  "description": "Reads your logs, finds the single root cause in your repository, proves the fix with a test, and opens a pull request. A person reviews; it never merges.",
+  "version": "2.0.1",
   "kind": "declarative",
   "engine": "work-loop",
   "identityScope": "installation",
