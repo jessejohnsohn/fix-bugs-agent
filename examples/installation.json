@@ -3,7 +3,7 @@
 
   "model": { "provider": "workers-ai", "model": "@cf/qwen/qwen3.8-27b" },
 
-  "limits": { "maxPathsPerRun": 1, "maxTurnsPerPath": 30 },
+  "limits": { "maxPathsPerRun": 1, "maxTurnsPerPath": 20 },
 
   "repository": {
     "url": "https://github.com/example/shop",
