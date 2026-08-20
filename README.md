@@ -17,8 +17,13 @@ you supply when you install it:
 | `repository.pushTo` | optional: a fork to push branches to, when it may not push to the repository itself (the open-source flow) |
 | `logSources` | the command(s) that turn your logs into findings — one JSON row per distinct failure |
 | `model` | the model its reasoning loop runs on |
-| `review.url` | your Human Eyes board — where its questions go for a person |
 | `secrets` | the names of the tokens it may use (values live in the harness) |
+
+Where its **questions** go is not configuration of the agent at all. The
+package lists the Human Eyes plugin under `permissions.plugins`; you install
+that plugin on your harness once (board URL + token, from
+[humaneyes.work](https://humaneyes.work)) and grant it to this agent. Until it
+is granted the agent is not ready to run, and setup says so.
 
 ## What it is
 

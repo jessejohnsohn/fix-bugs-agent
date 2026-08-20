@@ -3,7 +3,7 @@
   "id": "github.com/jessejohnsohn/fix-bugs-agent",
   "name": "Fix bugs",
   "description": "Reads your logs, finds the single root cause in your repository, proves the fix with a test, and opens a pull request. A person reviews; it never merges.",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "kind": "declarative",
   "engine": "work-loop",
   "identityScope": "installation",
@@ -21,6 +21,7 @@
 
   "permissions": {
     "network": ["github.com", "api.github.com"],
+    "plugins": ["github.com/jessejohnsohn/human-eyes-plugin"],
     "state": ["read", "write"],
     "artifacts": ["read", "write"]
   },
@@ -28,7 +29,7 @@
   "configurationSchema": {
     "type": "object",
     "description": "What an installation supplies. Everything specific to your setup — which logs, which repository, which model — lives here; the agent itself knows none of it.",
-    "required": ["model", "repository", "logSources", "review", "secrets"],
+    "required": ["model", "repository", "logSources", "secrets"],
     "properties": {
       "model": {
         "type": "object",
@@ -89,15 +90,6 @@
             "command": { "type": "array", "items": { "type": "string" }, "minItems": 1, "examples": [["python3", "ops/log-findings.py", "--window", "24h", "--json"]], "description": "The command, as an argv list, run from the repository root. Prints the JSON array on stdout. Any language; typically a script in your repository that queries your log store for the last window and groups the failures." },
             "secrets": { "type": "array", "items": { "type": "string" }, "examples": [["LOG_STORE_API_KEY"]], "description": "Secret names this command needs in its environment — a log-store API key, say. Handed to THIS command's invocation only; the model's shell never sees them." }
           }
-        }
-      },
-      "review": {
-        "type": "object",
-        "description": "The Human Eyes channel: where the agent's questions go for a person to answer. The pull request is the review of the FIX; this is the review of the agent's judgment calls along the way.",
-        "required": ["url", "tokenKey"],
-        "properties": {
-          "url": { "type": "string", "examples": ["https://human-eyes.example.workers.dev"], "description": "The machine-door URL of the Human Eyes board." },
-          "tokenKey": { "type": "string", "default": "HUMAN_EYES_TOKEN", "description": "Secret name holding the board's agent token." }
         }
       },
       "secrets": {

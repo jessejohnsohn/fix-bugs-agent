@@ -1,5 +1,5 @@
 {
-  "$comment": "A complete fix-bugs installation, with placeholder values. This is what you hand the harness when you install the package; the agent-package.json configurationSchema is what validates it.",
+  "$comment": "A complete fix-bugs installation, with placeholder values. This is what you hand the harness when you install the package; the agent-package.json configurationSchema is what validates it. Where the agent's QUESTIONS go is not in here: that is the Human Eyes plugin, installed on the harness once (board URL + token) and granted to this agent.",
 
   "model": { "provider": "workers-ai", "model": "@cf/qwen/qwen3.8-27b" },
 
@@ -20,10 +20,5 @@
     }
   ],
 
-  "review": {
-    "url": "https://review.example.com",
-    "tokenKey": "REVIEW_TOKEN"
-  },
-
-  "secrets": ["SHOP_GITHUB_TOKEN", "LOG_STORE_API_KEY", "REVIEW_TOKEN"]
+  "secrets": ["SHOP_GITHUB_TOKEN", "LOG_STORE_API_KEY"]
 }
