@@ -1,0 +1,29 @@
+{
+  "$comment": "A complete fix-bugs installation, with placeholder values. This is what you hand the harness when you install the package; the agent-package.json configurationSchema is what validates it.",
+
+  "model": { "provider": "workers-ai", "model": "@cf/qwen/qwen3.8-27b" },
+
+  "limits": { "maxPathsPerRun": 1, "maxTurnsPerPath": 30 },
+
+  "repository": {
+    "url": "https://github.com/example/shop",
+    "baseBranch": "main",
+    "tokenKey": "SHOP_GITHUB_TOKEN"
+  },
+
+  "logSources": [
+    {
+      "id": "worker-errors",
+      "description": "Unhandled errors from the production API over the last 24 hours, grouped by exception and top frame.",
+      "command": ["python3", "ops/log-findings.py", "--window", "24h", "--json"],
+      "secrets": ["LOG_STORE_API_KEY"]
+    }
+  ],
+
+  "review": {
+    "url": "https://review.example.com",
+    "tokenKey": "REVIEW_TOKEN"
+  },
+
+  "secrets": ["SHOP_GITHUB_TOKEN", "LOG_STORE_API_KEY", "REVIEW_TOKEN"]
+}

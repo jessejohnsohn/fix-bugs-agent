@@ -1,0 +1,100 @@
+{
+  "schema": "agent-package/v1",
+  "id": "github.com/jessejohnsohn/fix-bugs-agent",
+  "version": "2.0.0",
+  "kind": "declarative",
+  "engine": "work-loop",
+  "identityScope": "installation",
+  "runtime": { "type": "none" },
+
+  "prompt": {
+    "sources": ["prompt/agent.md"],
+    "preamble": "You read the logs, find the bug in the repository, and open a pull request that fixes it — or you stop and ask."
+  },
+  "policy": "policy.json",
+
+  "plugins": { "humanEyes": true },
+
+  "workLoop": { "producersFrom": "logSources" },
+
+  "permissions": {
+    "network": ["github.com", "api.github.com"],
+    "state": ["read", "write"],
+    "artifacts": ["read", "write"]
+  },
+
+  "configurationSchema": {
+    "type": "object",
+    "description": "What an installation supplies. Everything specific to your setup — which logs, which repository, which model — lives here; the agent itself knows none of it.",
+    "required": ["model", "repository", "logSources", "review", "secrets"],
+    "properties": {
+      "model": {
+        "type": "object",
+        "description": "The model the reasoning loop runs on.",
+        "required": ["provider", "model"],
+        "properties": {
+          "provider": { "const": "workers-ai" },
+          "model": { "type": "string" }
+        }
+      },
+      "limits": {
+        "type": "object",
+        "properties": {
+          "maxPathsPerRun": { "type": "integer", "minimum": 1, "description": "How many log findings one run may work. One is a good default: a run that opens one good pull request is a run that did its job." },
+          "maxTurnsPerPath": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "repository": {
+        "type": "object",
+        "description": "The GitHub repository the agent fixes. Cloned into the run's container; the pull request targets it. Private or public makes no difference to the agent — only to what the token must be allowed to do.",
+        "required": ["url", "baseBranch", "tokenKey"],
+        "properties": {
+          "url": { "type": "string", "pattern": "^https://github\\.com/[^/]+/[^/]+$", "description": "https://github.com/owner/name" },
+          "baseBranch": { "type": "string", "description": "The branch pull requests target, e.g. main. Protect it: the agent must never be able to push to it, and with branch protection on it cannot, whatever the model decides." },
+          "tokenKey": {
+            "type": "string",
+            "description": "Secret name holding a GitHub token. It must be able to READ the repository (a private one needs this to clone at all), PUSH a branch to the repository — or to `pushTo`, if set — and OPEN pull requests against the repository. A fine-grained token scoped to contents:read+write and pull_requests:write on exactly these repositories is the right shape."
+          },
+          "pushTo": {
+            "type": "string",
+            "pattern": "^https://github\\.com/[^/]+/[^/]+$",
+            "description": "Optional. A fork the agent pushes its fix branches to, when it may not push to `url` itself — the open-source contribution flow. The pull request is still opened against `url`, from the fork. Omit when the token can push branches to the repository directly."
+          }
+        }
+      },
+      "logSources": {
+        "type": "array",
+        "minItems": 1,
+        "description": "Where the bugs come from: the logs. Each source is a command the harness runs (never the model) that prints the current FINDINGS as a JSON array — one row per distinct failure, not one row per log line. Rows: { id, title, count, firstSeen, lastSeen, samples }. `id` MUST be a stable signature of the failure (the same bug across runs yields the same id); the agent uses it to recognise a finding it has already opened a pull request for. `samples` are raw log entries, enough to locate the failure in code. What a 'distinct failure' is — grouping by exception + top frame, by route + status, by error code — is the source's decision, and the best place for it: it knows the log format, the agent does not.",
+        "items": {
+          "type": "object",
+          "required": ["id", "description", "command"],
+          "properties": {
+            "id": { "type": "string", "description": "Short name for this source, e.g. worker-logs, sentry, ci-failures." },
+            "description": { "type": "string", "description": "What this source covers, in one line. Shown to the model with every finding." },
+            "command": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "The command, as an argv list, run from the repository root. Prints the JSON array on stdout. Any language; typically a script in your repository that queries your log store for the last window and groups the failures." },
+            "secrets": { "type": "array", "items": { "type": "string" }, "description": "Secret names this command needs in its environment — a log-store API key, say. Handed to THIS command's invocation only; the model's shell never sees them." }
+          }
+        }
+      },
+      "review": {
+        "type": "object",
+        "description": "The Human Eyes channel: where the agent's questions go for a person to answer. The pull request is the review of the FIX; this is the review of the agent's judgment calls along the way.",
+        "required": ["url", "tokenKey"],
+        "properties": {
+          "url": { "type": "string", "description": "The machine-door URL of the Human Eyes board." },
+          "tokenKey": { "type": "string" }
+        }
+      },
+      "secrets": {
+        "type": "array",
+        "description": "The UPPER_SNAKE names of every secret this installation resolves: the repository token, the review token, whatever the log sources need. Values live in the harness, never here.",
+        "items": { "type": "string" }
+      }
+    }
+  },
+
+  "secrets": [],
+
+  "compatibility": { "harness": ">=1.0.0 <2.0.0" }
+}

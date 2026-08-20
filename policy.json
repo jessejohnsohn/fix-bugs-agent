@@ -1,0 +1,113 @@
+{
+  "agentId": "fix-bugs",
+  "default": "park",
+  "prohibit": [
+    {
+      "id": "p-irreversible-public",
+      "when": { "action": { "reversibility": "irreversible", "blastRadius": "public" } },
+      "reason": "Nothing irreversible and public happens on an agent's say-so. If this is genuinely needed, it is a change to this policy document, not an approval."
+    }
+  ],
+  "rules": [
+    {
+      "id": "r-discovery",
+      "when": { "boundary": "discovery" },
+      "then": "notify"
+    },
+    {
+      "id": "r-unparseable-action",
+      "when": { "action": { "kind": "unparseable" } },
+      "then": "park"
+    },
+    {
+      "id": "r-unrecognized-tool",
+      "when": { "action": { "kind": "unrecognized" } },
+      "then": "park"
+    },
+    {
+      "id": "r-uncovered",
+      "when": { "detectorCoverage": "uncovered" },
+      "then": "park"
+    },
+    {
+      "id": "r-capability",
+      "when": { "boundary": "capability" },
+      "then": "park"
+    },
+    {
+      "id": "r-conflict",
+      "when": { "boundary": "conflict" },
+      "then": "park"
+    },
+    {
+      "id": "r-exhaustion",
+      "when": { "boundary": "exhaustion" },
+      "then": "park"
+    },
+    {
+      "id": "r-information",
+      "when": { "boundary": "information" },
+      "then": "park"
+    },
+    {
+      "id": "r-intent",
+      "when": { "boundary": "intent" },
+      "then": "park"
+    },
+    {
+      "id": "r-preference",
+      "when": { "boundary": "preference" },
+      "then": "park"
+    },
+    {
+      "id": "r-confidence",
+      "when": { "boundary": "confidence" },
+      "then": "park"
+    },
+    {
+      "id": "r-workspace-read",
+      "when": { "action": { "kind": "process.exec" } },
+      "then": "proceed"
+    },
+    {
+      "id": "r-workspace-write",
+      "when": { "action": { "kind": "fs.write" } },
+      "then": "proceed"
+    },
+    {
+      "id": "r-ask",
+      "when": { "action": { "kind": "none" } },
+      "then": "proceed"
+    },
+    {
+      "id": "r-vcs-commit",
+      "when": { "action": { "kind": "vcs.commit" } },
+      "then": "proceed"
+    },
+    {
+      "id": "r-vcs-push",
+      "when": { "action": { "kind": "vcs.push" } },
+      "then": "proceed"
+    },
+    {
+      "id": "r-vcs-pull-request",
+      "when": { "action": { "kind": "vcs.pull-request" } },
+      "then": "proceed"
+    },
+    {
+      "id": "r-http-request",
+      "when": { "action": { "kind": "http.request" } },
+      "then": "park"
+    },
+    {
+      "id": "r-cloud-deploy",
+      "when": { "action": { "kind": "cloud.deploy" } },
+      "then": "park"
+    },
+    {
+      "id": "r-db-write",
+      "when": { "action": { "kind": "db.write" } },
+      "then": "park"
+    }
+  ]
+}
