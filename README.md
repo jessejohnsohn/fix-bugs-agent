@@ -2,9 +2,10 @@
 
 A bug-fixing agent that works from your logs. Point it at a log source and a
 GitHub repository; it reads each distinct failure the logs show, finds the code
-that produced it, fixes the single root cause, proves the fix with a test that
-failed before and passes after, and opens a pull request. A person reviews the
-pull request. The agent never merges.
+that produced it, fixes the single root cause, and opens a pull request. It
+never builds the project or runs its tests — its container has `git` and `gh`,
+not your toolchain — the pull request's own checks do that, and a person
+reviews the pull request. The agent never merges.
 
 It is **abstract**. Nothing in this package names a company, a product, a
 codebase, or a log store. Everything specific to *your* setup is configuration

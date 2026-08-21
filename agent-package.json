@@ -2,8 +2,8 @@
   "schema": "agent-package/v1",
   "id": "github.com/jessejohnsohn/fix-bugs-agent",
   "name": "Fix bugs",
-  "description": "Reads your logs, finds the single root cause in your repository, proves the fix with a test, and opens a pull request. A person reviews; it never merges.",
-  "version": "2.1.0",
+  "description": "Reads your logs, finds the single root cause in your repository, and opens a pull request with the fix. It never builds or runs tests itself - the pull request's own checks do that; a person reviews; it never merges.",
+  "version": "2.1.1",
   "kind": "declarative",
   "engine": "work-loop",
   "identityScope": "installation",
@@ -21,7 +21,7 @@
 
   "permissions": {
     "network": ["github.com", "api.github.com"],
-    "plugins": ["github.com/jessejohnsohn/human-eyes-plugin"],
+    "plugins": ["github.com/jessejohnsohn/human-eyes-plugin", "github.com/jessejohnsohn/chat-plugin"],
     "state": ["read", "write"],
     "artifacts": ["read", "write"]
   },
@@ -44,7 +44,7 @@
         "type": "object",
         "properties": {
           "maxPathsPerRun": { "type": "integer", "minimum": 1, "default": 1, "description": "How many log findings one run may work. One is a good default: a run that opens one good pull request is a run that did its job." },
-          "maxTurnsPerPath": { "type": "integer", "minimum": 1, "default": 20, "description": "How many model turns one finding gets before the agent stops and asks. Twenty is enough to read, fix, test and open the pull request." }
+          "maxTurnsPerPath": { "type": "integer", "minimum": 1, "default": 20, "description": "How many model turns one finding gets before the agent stops and asks. Twenty is enough to read the evidence, find the cause, make the change and open the pull request - it never builds or tests." }
         }
       },
       "repository": {
