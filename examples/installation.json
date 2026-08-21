@@ -11,7 +11,15 @@
     "tokenKey": "SHOP_GITHUB_TOKEN"
   },
 
-  "logSources": [
+  "dataSources": [
+    {
+      "kind": "database",
+      "id": "bug-reports",
+      "description": "Open rows from the product's report-a-bug table, newest first.",
+      "driver": "postgres",
+      "urlKey": "BUGS_DB_URL",
+      "query": "SELECT id::text AS id, summary AS title, details, reporter, created_at FROM bug_reports WHERE status = 'open' ORDER BY created_at DESC"
+    },
     {
       "id": "worker-errors",
       "description": "Unhandled errors from the production API over the last 24 hours, grouped by exception and top frame.",
@@ -20,5 +28,5 @@
     }
   ],
 
-  "secrets": ["SHOP_GITHUB_TOKEN", "LOG_STORE_API_KEY"]
+  "secrets": ["SHOP_GITHUB_TOKEN", "BUGS_DB_URL", "LOG_STORE_API_KEY"]
 }

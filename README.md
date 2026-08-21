@@ -1,14 +1,15 @@
 # fix-bugs
 
-A bug-fixing agent that works from your logs. Point it at a log source and a
-GitHub repository; it reads each distinct failure the logs show, finds the code
-that produced it, fixes the single root cause, and opens a pull request. It
-never builds the project or runs its tests — its container has `git` and `gh`,
+A bug-fixing agent that works from wherever your bugs are reported. Point it
+at a data source — your product's report-a-bug table, a log query, an
+endpoint, a bucket — and a GitHub repository; it reads each distinct finding,
+finds the code behind it, fixes the single root cause, and opens a pull
+request. It never builds the project or runs its tests — its container has `git` and `gh`,
 not your toolchain — the pull request's own checks do that, and a person
 reviews the pull request. The agent never merges.
 
 It is **abstract**. Nothing in this package names a company, a product, a
-codebase, or a log store. Everything specific to *your* setup is configuration
+codebase, or a data store. Everything specific to *your* setup is configuration
 you supply when you install it:
 
 | You configure | What it is |
@@ -16,7 +17,7 @@ you supply when you install it:
 | `repository.url` / `baseBranch` | the GitHub repository it fixes — private or public — and the branch its pull requests target |
 | `repository.tokenKey` | the name of the token that clones, pushes a branch, and opens the PR |
 | `repository.pushTo` | optional: a fork to push branches to, when it may not push to the repository itself (the open-source flow) |
-| `logSources` | the command(s) that turn your logs into findings — one JSON row per distinct failure |
+| `dataSources` | where the findings come from — a database table, a Mongo collection, an HTTP endpoint, an R2 bucket, or a command of your own |
 | `model` | the model its reasoning loop runs on |
 | `secrets` | the names of the tokens it may use (values live in the harness) |
 
@@ -41,13 +42,43 @@ is granted the agent is not ready to run, and setup says so.
 - **Manifest:** [`agent-package.json`](agent-package.json) — the shape the
   harness installs against, and the configuration schema above.
 
-## The log source
+## Data sources
 
-The agent does not read logs. It reads **findings** — and a log source is the
-command that produces them. This is the one piece you write, and it is small:
-query your log store for the recent window, group the failures by whatever
-makes two entries "the same bug" in your system (exception + top frame, route +
-status, error code), and print a JSON array:
+The agent does not read logs or tables. It reads **findings** — rows of
+`{ id, title, ... }` — and a data source is what yields them. Five kinds, all
+declared in configuration:
+
+- **`database`** — postgres, mysql, sqlite, or Cloudflare D1, plus one query.
+  If your product has a "report a bug" feature writing rows into a table, this
+  is the whole integration — no script, no webhook, no code in your repository:
+
+  ```json
+  {
+    "kind": "database",
+    "id": "bug-reports",
+    "description": "Open rows from the product's report-a-bug table, newest first.",
+    "driver": "postgres",
+    "urlKey": "BUGS_DB_URL",
+    "query": "SELECT id::text AS id, summary AS title, details, reporter, created_at FROM bug_reports WHERE status = 'open' ORDER BY created_at DESC"
+  }
+  ```
+
+  The query's columns must yield `id` and `title` (alias in the SQL, or set
+  `"map": { "id": "report_id", "title": "summary" }`); every other column rides
+  along as evidence the agent reads. Sources are **read-only** — the agent
+  never writes back, marks rows, or changes state in your database.
+
+- **`mongodb`** — a collection and a filter, same contract.
+- **`http`** — GET a URL that answers with the JSON row array (bearer-token
+  secret, optional `rowsPath` when the array is nested).
+- **`r2`** — an object holding the array, or a prefix where each object is one
+  row.
+- **`command`** — the original shape, for anything else: a command run from the
+  repository root that prints the array. An entry with just `command` and no
+  `kind` still means this. The usual shape is a small script in your repository
+  that queries your log store for the recent window and groups the failures by
+  whatever makes two entries "the same bug" (exception + top frame, route +
+  status, error code):
 
 ```json
 [
@@ -70,14 +101,13 @@ Two rules that matter:
   must produce the same `id`. The agent marks every pull request it opens with
   `fix-bugs: <id>` and checks for that marker before it starts, so a finding
   that is already in hand is skipped rather than fixed twice.
-- **`samples` must be enough to find the code.** Raw entries, not summaries —
-  the message, the frame or route, the inputs the entry reveals. The agent has
-  no other bug report.
+- **The row must be enough to find the code.** Raw log samples, the
+  reporter's own words, the message, the frame or route — not summaries. The
+  agent has no other bug report.
 
-The harness runs the command itself, from the repository root, with only the
-secrets the source declares. The model never runs it and never sees those
-secrets. Any language works; a script checked into your repository is the
-usual shape.
+The harness reads every source itself — a command from the repository root,
+the declared kinds through its own runner — with only the secrets the source
+names. The model never runs them and never sees those secrets.
 
 ## Private or public repository
 

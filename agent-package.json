@@ -2,8 +2,8 @@
   "schema": "agent-package/v1",
   "id": "github.com/jessejohnsohn/fix-bugs-agent",
   "name": "Fix bugs",
-  "description": "Reads your logs, finds the single root cause in your repository, and opens a pull request with the fix. It never builds or runs tests itself - the pull request's own checks do that; a person reviews; it never merges.",
-  "version": "2.1.1",
+  "description": "Reads your bug reports and error logs - a database table, a log query, an endpoint, a bucket - finds the single root cause in your repository, and opens a pull request with the fix. It never builds or runs tests itself - the pull request's own checks do that; a person reviews; it never merges.",
+  "version": "3.0.0",
   "kind": "declarative",
   "engine": "work-loop",
   "identityScope": "installation",
@@ -11,13 +11,13 @@
 
   "prompt": {
     "sources": ["prompt/agent.md"],
-    "preamble": "You read the logs, find the bug in the repository, and open a pull request that fixes it — or you stop and ask."
+    "preamble": "You read the findings your data sources yield, find the bug in the repository, and open a pull request that fixes it — or you stop and ask."
   },
   "policy": "policy.json",
 
   "plugins": { "humanEyes": true },
 
-  "workLoop": { "producersFrom": "logSources" },
+  "workLoop": { "producersFrom": "dataSources" },
 
   "permissions": {
     "network": ["github.com", "api.github.com"],
@@ -28,8 +28,8 @@
 
   "configurationSchema": {
     "type": "object",
-    "description": "What an installation supplies. Everything specific to your setup — which logs, which repository, which model — lives here; the agent itself knows none of it.",
-    "required": ["model", "repository", "logSources", "secrets"],
+    "description": "What an installation supplies. Everything specific to your setup — which data sources, which repository, which model — lives here; the agent itself knows none of it.",
+    "required": ["model", "repository", "dataSources", "secrets"],
     "properties": {
       "model": {
         "type": "object",
@@ -43,7 +43,7 @@
       "limits": {
         "type": "object",
         "properties": {
-          "maxPathsPerRun": { "type": "integer", "minimum": 1, "default": 1, "description": "How many log findings one run may work. One is a good default: a run that opens one good pull request is a run that did its job." },
+          "maxPathsPerRun": { "type": "integer", "minimum": 1, "default": 1, "description": "How many findings one run may work. One is a good default: a run that opens one good pull request is a run that did its job." },
           "maxTurnsPerPath": { "type": "integer", "minimum": 1, "default": 20, "description": "How many model turns one finding gets before the agent stops and asks. Twenty is enough to read the evidence, find the cause, make the change and open the pull request - it never builds or tests." }
         }
       },
@@ -67,12 +67,20 @@
           }
         }
       },
-      "logSources": {
+      "dataSources": {
         "type": "array",
         "minItems": 1,
-        "description": "Where the bugs come from: the logs. Each source is a command the harness runs (never the model) that prints the current FINDINGS as a JSON array — one row per distinct failure, not one row per log line. Rows: { id, title, count, firstSeen, lastSeen, samples }. `id` MUST be a stable signature of the failure (the same bug across runs yields the same id); the agent uses it to recognise a finding it has already opened a pull request for. `samples` are raw log entries, enough to locate the failure in code. What a 'distinct failure' is — grouping by exception + top frame, by route + status, by error code — is the source's decision, and the best place for it: it knows the log format, the agent does not.",
+        "description": "Where the bugs come from. Each source yields the current FINDINGS as a JSON array of rows { id, title, ... } — one row per distinct problem, not one per log line or per comment. `id` MUST be stable (a table's primary key, a failure signature: the same bug across runs yields the same id); the agent uses it to recognise a finding it has already opened a pull request for. Everything else the row carries is shown to the model as evidence, so include what locates the problem in code: log samples, a stack trace, the reporter's own words. Five kinds, by `kind`: 'command' — an argv run from the repository root that prints the array (an entry with just `command` and no `kind` means this); 'database' — driver postgres | mysql | sqlite | d1 and a query whose columns yield id and title (alias in the SQL, or set `map`) — the shape a product's own 'report a bug' table wants; 'mongodb' — a collection and filter; 'http' — GET a URL that answers with the array; 'r2' — an object holding the array, or a prefix where each object is one row. The non-command kinds run in the harness's own runner — no script in your repository — and their credentials, named by the *Key fields with values pasted as secrets, are handed to that one read and never to the agent's shell.",
         "examples": [
           [
+            {
+              "kind": "database",
+              "id": "bug-reports",
+              "description": "Open rows from the product's report-a-bug table, newest first.",
+              "driver": "postgres",
+              "urlKey": "BUGS_DB_URL",
+              "query": "SELECT id::text AS id, summary AS title, details, reporter, created_at FROM bug_reports WHERE status = 'open' ORDER BY created_at DESC"
+            },
             {
               "id": "worker-errors",
               "description": "Unhandled errors from the production API over the last 24 hours, grouped by exception and top frame.",
@@ -83,18 +91,39 @@
         ],
         "items": {
           "type": "object",
-          "required": ["id", "description", "command"],
+          "required": ["id", "description"],
           "properties": {
-            "id": { "type": "string", "examples": ["worker-errors"], "description": "Short name for this source, e.g. worker-logs, sentry, ci-failures." },
-            "description": { "type": "string", "examples": ["Unhandled errors from the production API over the last 24 hours, grouped by exception and top frame."], "description": "What this source covers, in one line. Shown to the model with every finding." },
-            "command": { "type": "array", "items": { "type": "string" }, "minItems": 1, "examples": [["python3", "ops/log-findings.py", "--window", "24h", "--json"]], "description": "The command, as an argv list, run from the repository root. Prints the JSON array on stdout. Any language; typically a script in your repository that queries your log store for the last window and groups the failures." },
-            "secrets": { "type": "array", "items": { "type": "string" }, "examples": [["LOG_STORE_API_KEY"]], "description": "Secret names this command needs in its environment — a log-store API key, say. Handed to THIS command's invocation only; the model's shell never sees them." }
+            "kind": { "enum": ["command", "database", "mongodb", "http", "r2"], "description": "What shape this source is. Omit it only for a command — an entry with `command` and no `kind` still means command." },
+            "id": { "type": "string", "examples": ["bug-reports"], "description": "Short name for this source, e.g. bug-reports, worker-errors, sentry." },
+            "description": { "type": "string", "examples": ["Open rows from the product's report-a-bug table."], "description": "What this source covers, in one line. Shown to the model with every finding." },
+            "command": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "kind command: the argv, run from the repository root, printing the JSON array on stdout." },
+            "secrets": { "type": "array", "items": { "type": "string" }, "description": "kind command: secret names the command needs in its environment. Handed to THIS command's invocation only; the model's shell never sees them." },
+            "driver": { "enum": ["postgres", "mysql", "sqlite", "d1"], "description": "kind database: which database speaks here." },
+            "query": { "type": "string", "description": "kind database: the query. Its columns must yield id and title — alias in the SQL (… AS id, … AS title) or set `map`. Everything else it selects rides along as evidence." },
+            "urlKey": { "type": "string", "description": "database (postgres/mysql) and mongodb: secret name holding the connection URL." },
+            "path": { "type": "string", "description": "database (sqlite): the database file, relative to the repository root." },
+            "accountId": { "type": "string", "description": "database (d1) and r2: the Cloudflare account id." },
+            "databaseId": { "type": "string", "description": "database (d1): the D1 database id." },
+            "tokenKey": { "type": "string", "description": "database (d1): secret name holding a Cloudflare API token with D1 read access." },
+            "database": { "type": "string", "description": "mongodb: the database name." },
+            "collection": { "type": "string", "description": "mongodb: the collection holding the reports." },
+            "filter": { "type": "object", "description": "mongodb: a find() filter document, e.g. {\"status\": \"open\"}. Omit for everything (bounded by limit)." },
+            "url": { "type": "string", "description": "http: the https URL that answers with the JSON row array." },
+            "bearerKey": { "type": "string", "description": "http: secret name holding a bearer token, sent as Authorization." },
+            "rowsPath": { "type": "string", "description": "http: dotted path to the row array inside the response, when it is not the root." },
+            "bucket": { "type": "string", "description": "r2: the bucket name." },
+            "accessKeyIdKey": { "type": "string", "description": "r2: secret name holding the S3-API access key id." },
+            "secretAccessKeyKey": { "type": "string", "description": "r2: secret name holding the S3-API secret access key." },
+            "key": { "type": "string", "description": "r2: one object holding the whole row array. Exactly one of key and prefix." },
+            "prefix": { "type": "string", "description": "r2: each object under this prefix is one row; its object key is the row's id. Exactly one of key and prefix." },
+            "map": { "type": "object", "description": "Non-command kinds: rename source fields to the row contract, e.g. {\"id\": \"report_id\", \"title\": \"summary\"}. Only id and title are mappable — everything else is carried as it comes." },
+            "limit": { "type": "integer", "minimum": 1, "default": 50, "description": "Non-command kinds: rows per read. Keep it modest — every run re-reads the source, and a run works one finding." }
           }
         }
       },
       "secrets": {
         "type": "array",
-        "description": "The UPPER_SNAKE names of every secret this installation resolves: the repository token, the review token, whatever the log sources need. Values live in the harness, never here.",
+        "description": "The UPPER_SNAKE names of every secret this installation resolves: the repository token and whatever the data sources name in their *Key fields. Values live in the harness, never here.",
         "items": { "type": "string" }
       }
     }
