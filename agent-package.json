@@ -3,7 +3,7 @@
   "id": "github.com/jessejohnsohn/fix-bugs-agent",
   "name": "Fix bugs",
   "description": "Reads your bug reports and error logs - a database table, a log query, an endpoint, a bucket - finds the single root cause in your repository, and opens a pull request with the fix. It never builds or runs tests itself - the pull request's own checks do that; a person reviews; it never merges.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "kind": "declarative",
   "engine": "work-loop",
   "identityScope": "installation",

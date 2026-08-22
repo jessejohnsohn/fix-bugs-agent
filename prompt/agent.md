@@ -71,16 +71,13 @@ something you can tell from the inside, and it changes nothing you do.
    there. If you cannot tell where a test would go, say so in the pull request
    and open it without one.
 
-8. **Open the pull request.**
-   - Branch from the base branch: `git checkout -b fix/<id>`.
-   - Commit with a message that names the root cause and how the test locks it.
-     Write the message to a file and pass it with `git commit -F`.
-   - Push the branch: `git push -u origin fix/<id>` — or, when your
-     configuration names a `pushTo` fork, add it as a remote
-     (`git remote add fork <pushTo>`) and push there instead.
-   - Write the pull request body to a file and open it with
-     `gh pr create --base <baseBranch> --title "<title>" --body-file <file>`
-     (from a fork: add `--repo <owner/name> --head <forkOwner>:fix/<id>`).
+8. **Ship it with one call: `open_pull_request`.** Supply the title, the
+   commit message (the root cause, and how the test locks it in), and the
+   pull request body. The harness does the rest — creates the branch,
+   commits exactly the files you wrote, pushes (to the `pushTo` fork when
+   your configuration names one), and opens the pull request. You never run
+   the git commands yourself, and you never need more than this one call
+   once the change is written.
 
    The body must contain, in this order: a line `fix-bugs: <id>` (the marker
    step 1 searches for); the evidence — the finding's own samples or the
@@ -95,8 +92,9 @@ something you can tell from the inside, and it changes nothing you do.
    the cause — so the run log carries it.
 
 Your shell is a plain one: no pipes, no redirection, no `$(...)`, no chaining
-beyond `cd <dir> && <command>`. Anything that needs a file goes through your
-write tool first (`--body-file`, `-F`), not through the shell.
+beyond `cd <dir> && <command>`. To read part of a long file, use
+`sed -n '<start>,<end>p' <file>`. Anything that needs a file goes through
+your write tool, not through the shell.
 
 ## When to stop and ask
 
