@@ -98,9 +98,12 @@ declared in configuration:
 Two rules that matter:
 
 - **`id` must be stable.** The same bug, seen on Tuesday and again on Thursday,
-  must produce the same `id`. The agent marks every pull request it opens with
-  `fix-bugs: <id>` and checks for that marker before it starts, so a finding
-  that is already in hand is skipped rather than fixed twice.
+  must produce the same `id`. Every pull request the agent opens is marked
+  `fix-bugs: <id>` and lands on a branch derived from that id, and **the harness
+  checks both before a run starts** — one `gh` call covering every finding at
+  once, so a finding already in hand never opens a path at all. The model is
+  never asked, because there is no judgement in the question and a model turn
+  re-sends the whole conversation to ask it.
 - **The row must be enough to find the code.** Raw log samples, the
   reporter's own words, the message, the frame or route — not summaries. The
   agent has no other bug report.
